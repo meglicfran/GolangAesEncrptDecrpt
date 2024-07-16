@@ -1,15 +1,22 @@
 package main
 
 import (
+	"encoding/hex"
+	"fmt"
 	"strings"
 
 	"github.com/lxn/walk"
 	"github.com/lxn/walk/declarative"
+	"github.com/meglicfran/GolangAesEncrptDecrpt/utils"
 )
 
 func main() {
 	var inTE, outTE *walk.TextEdit
-
+	cipherText, err := utils.AesEncrypt("TestTestTest12345", "aesEncryptionKey", []byte("1234567890123456"))
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(hex.EncodeToString(cipherText))
 	declarative.MainWindow{
 		Title:   "SCREAMO",
 		MinSize: declarative.Size{Width: 600, Height: 400},
