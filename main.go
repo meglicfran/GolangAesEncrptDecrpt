@@ -12,11 +12,16 @@ import (
 
 func main() {
 	var inTE, outTE *walk.TextEdit
-	cipherText, err := utils.AesEncrypt("TestTestTest12345", "aesEncryptionKey", []byte("1234567890123456"))
+	cipherText, err := utils.AesEncrypt([]byte("TestTestTest12345"), []byte("aesEncryptionKey"), []byte("1234567890123456"))
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println(hex.EncodeToString(cipherText))
+	plaintext, err := utils.AesDecrypt(cipherText, []byte("aesEncryptionKey"), []byte("1234567890123456"))
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(plaintext))
 	declarative.MainWindow{
 		Title:   "SCREAMO",
 		MinSize: declarative.Size{Width: 600, Height: 400},
