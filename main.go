@@ -2,14 +2,13 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/lxn/walk"
 	"github.com/lxn/walk/declarative"
 	"github.com/meglicfran/GolangAesEncrptDecrpt/utils"
 )
 
-type rButton struct {
+type radioButton struct {
 	Action string
 }
 
@@ -22,80 +21,87 @@ var usedFont declarative.Font = declarative.Font{
 	StrikeOut: false,
 }
 
-func main() {
-	var _, outTE *walk.TextEdit
-	var text, iv, key *walk.TextEdit
-	buttonData := &rButton{"Encrypt"}
-	cipherText, err := utils.AesEncrypt([]byte("TestTestTest12345"), []byte("aesEncryptionKey"), []byte("1234567890123456"))
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(hex.EncodeToString(cipherText))
-	plaintext, err := utils.AesDecrypt(cipherText, []byte("aesEncryptionKey"), []byte("1234567890123456"))
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(string(plaintext))
+var outputText, inputText, iv, key *walk.TextEdit
+var actionButton *walk.PushButton
+var encryptRadioButton, decryptRadioButton *walk.RadioButton
+var radioButtonData *radioButton = &radioButton{"Encrypt"}
+var actionEnabled = walk.NewMutableCondition()
 
-	Keyinput := declarative.TextEdit{AssignTo: &iv}
+func pushButtonClicked() {
+	textBytes := []byte(inputText.Text())
+	keyBytes := []byte(key.Text())
+	ivBytes := []byte(iv.Text())
+	switch radioButtonData.Action {
+	case "Encrypt":
+		cipherText, err := utils.AesEncrypt(textBytes, keyBytes, ivBytes)
+		if err != nil {
+			outputText.SetText(err.Error())
+			break
+		}
+		outputText.SetText("Cipher text:" + hex.EncodeToString(cipherText))
+	case "Decrypt":
+		hexText, err := hex.DecodeString(inputText.Text())
+		if err != nil {
+			outputText.SetText(err.Error())
+			break
+		}
+		plaintext, err := utils.AesDecrypt(hexText, keyBytes, ivBytes)
+		if err != nil {
+			outputText.SetText(err.Error())
+			break
+		}
+		outputText.SetText("Plain text: " + string(plaintext))
+	}
+	actionEnabled.SetSatisfied(true)
+}
+
+func pushButtonAsync() {
+	actionEnabled.SetSatisfied(false)
+	go pushButtonClicked()
+}
+
+func updateActionText() {
+	actionButton.SetText(radioButtonData.Action)
+}
+
+func main() {
+	declarative.MustRegisterCondition("isEnabled", actionEnabled)
+	actionEnabled.SetSatisfied(true)
 	children := []declarative.Widget{
 		declarative.VSplitter{
 			Children: []declarative.Widget{
-				declarative.TextEdit{AssignTo: &text, Font: usedFont},
+				declarative.TextEdit{AssignTo: &inputText, Font: usedFont},
 				declarative.TextEdit{AssignTo: &iv, Font: usedFont},
 				declarative.TextEdit{AssignTo: &key, Font: usedFont},
 				declarative.RadioButtonGroup{
 					DataMember: "Action",
 					Buttons: []declarative.RadioButton{
 						{
-							Font:  usedFont,
-							Text:  "Encrypt",
-							Value: "Encrypt",
-							Name:  "Encrypt",
+							AssignTo:  &encryptRadioButton,
+							Font:      usedFont,
+							Text:      "Encrypt",
+							Value:     "Encrypt",
+							Name:      "Encrypt",
+							OnClicked: updateActionText,
 						},
 						{
-							Font:  usedFont,
-							Text:  "Decrypt",
-							Value: "Decrypt",
-							Name:  "Decrypt",
+							AssignTo:  &decryptRadioButton,
+							Font:      usedFont,
+							Text:      "Decrypt",
+							Value:     "Decrypt",
+							Name:      "Decrypt",
+							OnClicked: updateActionText,
 						},
 					},
 				},
-				declarative.TextEdit{AssignTo: &outTE, ReadOnly: true, Font: usedFont},
+				declarative.TextEdit{AssignTo: &outputText, ReadOnly: true, Font: usedFont},
 			},
 		},
 		declarative.PushButton{
-			Text: buttonData.Action,
-			OnClicked: func() {
-				textBytes := []byte(text.Text())
-				keyBytes := []byte(key.Text())
-				ivBytes := []byte(iv.Text())
-				fmt.Print(Keyinput.Font.Family)
-				switch buttonData.Action {
-				case "Encrypt":
-					cipherText, err := utils.AesEncrypt(textBytes, keyBytes, ivBytes)
-					if err != nil {
-						outTE.SetText(err.Error())
-						return
-					}
-					outTE.SetText("Cipher text:" + hex.EncodeToString(cipherText))
-					return
-				case "Decrypt":
-					hexText, err := hex.DecodeString(text.Text())
-					if err != nil {
-						outTE.SetText(err.Error())
-						return
-					}
-					plaintext, err := utils.AesDecrypt(hexText, keyBytes, ivBytes)
-					if err != nil {
-						outTE.SetText(err.Error())
-						return
-					}
-					outTE.SetText("Plain text: " + string(plaintext) + " " + Keyinput.Font.Family)
-					return
-				}
-				//outTE.SetText(strings.ToUpper(fmt.Sprintf("%v : ", buttonData.Action) + text.Text() + iv.Text() + key.Text()))
-			},
+			Text:      radioButtonData.Action,
+			OnClicked: pushButtonAsync,
+			AssignTo:  &actionButton,
+			Enabled:   declarative.Bind("isEnabled"),
 		},
 	}
 
@@ -103,7 +109,7 @@ func main() {
 		Title:   "AES Encryption/Decryption",
 		MinSize: declarative.Size{Width: 600, Height: 400},
 		DataBinder: declarative.DataBinder{
-			DataSource: buttonData,
+			DataSource: radioButtonData,
 			AutoSubmit: true,
 		},
 		Layout:   declarative.VBox{},
