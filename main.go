@@ -14,14 +14,15 @@ type radioButton struct {
 
 var usedFont declarative.Font = declarative.Font{
 	Family:    "",
-	PointSize: 20,
+	PointSize: 10,
 	Bold:      false,
 	Italic:    false,
 	Underline: false,
 	StrikeOut: false,
 }
 
-var outputText, inputText, iv, key *walk.TextEdit
+var outputText, inputText, iv, key *walk.LineEdit
+var inputTextLabel, outputTextLabel *walk.Label
 var actionButton *walk.PushButton
 var encryptRadioButton, decryptRadioButton *walk.RadioButton
 var radioButtonData *radioButton = &radioButton{"Encrypt"}
@@ -38,7 +39,7 @@ func pushButtonClicked() {
 			outputText.SetText(err.Error())
 			break
 		}
-		outputText.SetText("Cipher text:" + hex.EncodeToString(cipherText))
+		outputText.SetText(hex.EncodeToString(cipherText))
 	case "Decrypt":
 		hexText, err := hex.DecodeString(inputText.Text())
 		if err != nil {
@@ -50,7 +51,7 @@ func pushButtonClicked() {
 			outputText.SetText(err.Error())
 			break
 		}
-		outputText.SetText("Plain text: " + string(plaintext))
+		outputText.SetText(string(plaintext))
 	}
 	actionEnabled.SetSatisfied(true)
 }
@@ -60,54 +61,74 @@ func pushButtonAsync() {
 	go pushButtonClicked()
 }
 
-func updateActionText() {
+func radioButtonPressed() {
 	actionButton.SetText(radioButtonData.Action)
+	if radioButtonData.Action == "Encrypt" {
+		inputTextLabel.SetText("Plain text: ")
+		outputTextLabel.SetText("Cipher text: ")
+	} else {
+		inputTextLabel.SetText("Cipher text: ")
+		outputTextLabel.SetText("Plain text: ")
+	}
 }
 
 func main() {
 	declarative.MustRegisterCondition("isEnabled", actionEnabled)
 	actionEnabled.SetSatisfied(true)
 	children := []declarative.Widget{
-		declarative.VSplitter{
+		declarative.Composite{
+			Layout: declarative.Grid{
+				Columns:   2,
+				Alignment: declarative.AlignHCenterVCenter,
+			},
 			Children: []declarative.Widget{
-				declarative.TextEdit{AssignTo: &inputText, Font: usedFont},
-				declarative.TextEdit{AssignTo: &iv, Font: usedFont},
-				declarative.TextEdit{AssignTo: &key, Font: usedFont},
-				declarative.RadioButtonGroup{
+				declarative.Label{Text: "Plain text: ", Font: usedFont, AssignTo: &inputTextLabel},
+				declarative.LineEdit{AssignTo: &inputText, Font: usedFont},
+				declarative.Label{Text: "IV: ", Font: usedFont},
+				declarative.LineEdit{AssignTo: &iv, Font: usedFont},
+				declarative.Label{Text: "Key: ", Font: usedFont},
+				declarative.LineEdit{AssignTo: &key, Font: usedFont},
+				declarative.RadioButtonGroupBox{
+					ColumnSpan: 2,
 					DataMember: "Action",
+					Title:      "Action",
+					Font:       usedFont,
+					Layout:     declarative.HBox{},
 					Buttons: []declarative.RadioButton{
 						{
 							AssignTo:  &encryptRadioButton,
 							Font:      usedFont,
 							Text:      "Encrypt",
 							Value:     "Encrypt",
-							Name:      "Encrypt",
-							OnClicked: updateActionText,
+							OnClicked: radioButtonPressed,
 						},
 						{
 							AssignTo:  &decryptRadioButton,
 							Font:      usedFont,
 							Text:      "Decrypt",
 							Value:     "Decrypt",
-							Name:      "Decrypt",
-							OnClicked: updateActionText,
+							OnClicked: radioButtonPressed,
 						},
 					},
 				},
-				declarative.TextEdit{AssignTo: &outputText, ReadOnly: true, Font: usedFont},
+				declarative.PushButton{
+					ColumnSpan: 2,
+					Text:       radioButtonData.Action,
+					OnClicked:  pushButtonAsync,
+					AssignTo:   &actionButton,
+					Enabled:    declarative.Bind("isEnabled"),
+					Font:       usedFont,
+				},
+				declarative.Label{Text: "Cipher text: ", Font: usedFont, AssignTo: &outputTextLabel},
+				declarative.LineEdit{AssignTo: &outputText, ReadOnly: true, Font: usedFont},
 			},
-		},
-		declarative.PushButton{
-			Text:      radioButtonData.Action,
-			OnClicked: pushButtonAsync,
-			AssignTo:  &actionButton,
-			Enabled:   declarative.Bind("isEnabled"),
 		},
 	}
 
 	declarative.MainWindow{
 		Title:   "AES Encryption/Decryption",
-		MinSize: declarative.Size{Width: 600, Height: 400},
+		MinSize: declarative.Size{Width: 800, Height: 400},
+		Size:    declarative.Size{Width: 800, Height: 400},
 		DataBinder: declarative.DataBinder{
 			DataSource: radioButtonData,
 			AutoSubmit: true,
